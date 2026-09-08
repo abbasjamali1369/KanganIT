@@ -1,0 +1,53 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Set up Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.44.8'
+        cache: true
+
+    - name: Accept Android Licenses
+      run: |
+        yes | flutter doctor --android-licenses || true
+
+    - name: Install dependencies & Flet
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt || true
+        pip install "flet[all]"
+
+    - name: Build APK
+      run: |
+        yes | flet build apk --project KanganIT --org ir.kanganit --module-name main -vv
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: KanganIT-APK
+        path: build/apk/*.apk

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>گزارش حضور و غیاب پایتون دوره اول</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 15mm;
+        }
+        body {
+            font-family: 'Tahoma', 'Vazirmatn', 'Segoe UI', sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            color: #2c3e50;
+            direction: rtl;
+        }
+        .report-box {
+            background: #ffffff;
+            max-width: 800px;
+            margin: auto;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border: 1px solid #e1e8ed;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #00acc1;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #006064;
+            margin: 0;
+        }
+        .meta-info {
+            font-size: 12px;
+            color: #555;
+            text-align: left;
+            line-height: 1.6;
+        }
+        .summary-cards {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .card {
+            flex: 1;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+        .card-num {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00838f;
+        }
+        .card-label {
+            font-size: 12px;
+            color: #64748b;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th {
+            background-color: #00838f;
+            color: #ffffff;
+            font-size: 13px;
+            padding: 10px;
+            text-align: center;
+        }
+        td {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 10px 8px;
+            font-size: 12px;
+            text-align: center;
+        }
+        tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 11px;
+        }
+        .good { background: #dcfce7; color: #15803d; }
+        .warn { background: #fef3c7; color: #b45309; }
+        .bad { background: #fee2e2; color: #b91c1c; }
+        .footer {
+            margin-top: 35px;
+            padding-top: 15px;
+            border-top: 1px dashed #cbd5e1;
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #64748b;
+        }
+        .btn-print {
+            background-color: #00acc1;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            margin-bottom: 15px;
+            font-weight: bold;
+            font-family: inherit;
+        }
+        .btn-print:hover {
+            background-color: #00838f;
+        }
+        @media print {
+            body { background: transparent; padding: 0; }
+            .report-box { box-shadow: none; border: none; max-width: 100%; }
+            .btn-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div style="text-align: center;">
+        <button class="btn-print" onclick="window.print()">🖨️ چاپ یا ذخیره به عنوان PDF</button>
+    </div>
+    <div class="report-box">
+        <div class="header">
+            <div>
+                <h1 class="title">📋 گزارش رسمی وضعیت حضور و غیاب</h1>
+                <div style="font-size: 14px; margin-top: 5px; color: #374151;"><strong>کلاس:</strong> پایتون دوره اول</div>
+            </div>
+            <div class="meta-info">
+                <div><strong>تاریخ صدور:</strong> 1405/06/13 - ساعت 22:00</div>
+                <div><strong>سیستم مدیریت آموزشگاه</strong></div>
+            </div>
+        </div>
+
+        <div class="summary-cards">
+            <div class="card">
+                <div class="card-num">3</div>
+                <div class="card-label">تعداد کل جلسات</div>
+            </div>
+            <div class="card">
+                <div class="card-num">3</div>
+                <div class="card-label">تعداد کل هنرجویان</div>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 40px;">ردیف</th>
+                    <th>نام و نام خانوادگی هنرجو</th>
+                    <th style="width: 80px;">حاضر</th>
+                    <th style="width: 80px;">موجه</th>
+                    <th style="width: 80px;">غیرموجه</th>
+                    <th style="width: 90px;">درصد حضور</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                <tr>
+                    <td>1</td>
+                    <td style="font-weight: bold; text-align: right; padding-right: 15px;">احمدرضا کارگر</td>
+                    <td style="color: #107c41; font-weight: bold;">1</td>
+                    <td style="color: #d83b01; font-weight: bold;">2</td>
+                    <td style="color: #a80000; font-weight: bold;">0</td>
+                    <td><span class="badge bad">33.3%</span></td>
+                </tr>
+                
+                <tr>
+                    <td>2</td>
+                    <td style="font-weight: bold; text-align: right; padding-right: 15px;">فرشته کارگر</td>
+                    <td style="color: #107c41; font-weight: bold;">2</td>
+                    <td style="color: #d83b01; font-weight: bold;">0</td>
+                    <td style="color: #a80000; font-weight: bold;">0</td>
+                    <td><span class="badge warn">66.7%</span></td>
+                </tr>
+                
+                <tr>
+                    <td>3</td>
+                    <td style="font-weight: bold; text-align: right; padding-right: 15px;">محیا جمالی</td>
+                    <td style="color: #107c41; font-weight: bold;">2</td>
+                    <td style="color: #d83b01; font-weight: bold;">0</td>
+                    <td style="color: #a80000; font-weight: bold;">1</td>
+                    <td><span class="badge warn">66.7%</span></td>
+                </tr>
+                
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <span>توسعه داده شده توسط: <strong>عباس جمالی‌نژاد</strong> (kanganit.ir)</span>
+            <span>سامانه هوشمند مدیریت آموزشگاه</span>
+        </div>
+    </div>
+    <script>
+        // به محض لود شدن صفحه کادر پرینت و ذخیره PDF باز می‌شود
+        window.onload = function() {
+            setTimeout(function() {
+                window.print();
+            }, 500);
+        };
+    </script>
+</body>
+</html>

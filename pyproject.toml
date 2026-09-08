@@ -1,0 +1,10 @@
+[project]
+name = "kanganit"
+version = "0.1.0"
+dependencies = [
+    "flet>=0.28.0",
+    "jdatetime",
+]
+
+[tool.flet]
+module = "main"

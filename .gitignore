@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+.flet/
+*.db
+build/
+dist/
