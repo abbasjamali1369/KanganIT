@@ -89,13 +89,13 @@ class ClassesView(ft.Container):
                 return False
 
     def build_top_navy_bar(self):
-        """نوار اطلاعات بالای صفحه (اطلاعات تماس و اینستاگرام تمیز و مرتب)"""
+        """نوار اطلاعات بالای صفحه با فاصله ایمن از بالا (برای نوار وضعیت موبایل)"""
         return ft.Container(
             bgcolor=NAVY_HEADER,
             padding=ft.Padding(
                 left=16,
                 right=16,
-                top=8,
+                top=30,
                 bottom=8,
             ),
             content=ft.Row(
@@ -111,7 +111,7 @@ class ClassesView(ft.Container):
                                 color="#E1306C",
                             ),
                             ft.Text(
-                                "kanganit_academy",
+                                "عباس جمالی نژاد",
                                 size=11,
                                 color=TEXT_WHITE,
                                 weight=ft.FontWeight.W_500,
@@ -571,7 +571,7 @@ class ClassesView(ft.Container):
         pg.update()
 
     def create_class_card(self, class_record):
-        """کارت هر دوره با قابلیت مدیریت، آمار و حذف"""
+        """کارت هر دوره با چیدمان دو ردیفه: اطلاعات در بالا و دکمه‌های عملیاتی در پایین"""
         class_id = class_record[0]
         class_name = class_record[1]
         teacher_name = (
@@ -589,12 +589,67 @@ class ClassesView(ft.Container):
             on_click=lambda e, cid=class_id, cname=class_name: self.go_to_students(
                 cid, cname
             ),
-            content=ft.Row(
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            content=ft.Column(
+                spacing=10,
                 controls=[
+                    # ردیف بالا: اطلاعات دوره و آیکون اصلی
                     ft.Row(
-                        spacing=2,
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                        controls=[
+                            # ستون نام دوره و مدرس
+                            ft.Column(
+                                spacing=3,
+                                horizontal_alignment=ft.CrossAxisAlignment.END,
+                                expand=True,
+                                controls=[
+                                    ft.Text(
+                                        class_name,
+                                        size=15,
+                                        weight=ft.FontWeight.BOLD,
+                                        color=TEXT_WHITE,
+                                        overflow=ft.TextOverflow.ELLIPSIS,
+                                        max_lines=1,
+                                    ),
+                                    ft.Row(
+                                        spacing=4,
+                                        alignment=ft.MainAxisAlignment.END,
+                                        controls=[
+                                            ft.Text(
+                                                f"مدرس: {teacher_name}",
+                                                size=12,
+                                                color=TEXT_MUTED,
+                                                overflow=ft.TextOverflow.ELLIPSIS,
+                                                max_lines=1,
+                                            ),
+                                            ft.Icon(
+                                                ft.Icons.PERSON_OUTLINE,
+                                                size=14,
+                                                color=TEXT_MUTED,
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                            # آیکون کتاب سمت راست
+                            ft.Container(
+                                width=44,
+                                height=44,
+                                border_radius=10,
+                                bgcolor="rgba(123, 44, 191, 0.2)",
+                                alignment=ft.Alignment(0, 0),
+                                content=ft.Icon(
+                                    ft.Icons.BOOK_ROUNDED,
+                                    color=PURPLE_START,
+                                    size=22,
+                                ),
+                            ),
+                        ],
+                    ),
+                    # ردیف پایین: سه آیکون عملیاتی (حذف، آمار و ورود به لیست هنرجویان)
+                    ft.Row(
+                        alignment=ft.MainAxisAlignment.START,
+                        spacing=0,
                         controls=[
                             ft.IconButton(
                                 icon=ft.Icons.DELETE_OUTLINE,
@@ -619,51 +674,6 @@ class ClassesView(ft.Container):
                                 tooltip="مدیریت هنرجویان و حضور غیاب",
                                 on_click=lambda e, cid=class_id, cname=class_name: self.go_to_students(
                                     cid, cname
-                                ),
-                            ),
-                        ],
-                    ),
-                    ft.Row(
-                        spacing=12,
-                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                        controls=[
-                            ft.Column(
-                                spacing=3,
-                                horizontal_alignment=ft.CrossAxisAlignment.END,
-                                controls=[
-                                    ft.Text(
-                                        class_name,
-                                        size=15,
-                                        weight=ft.FontWeight.BOLD,
-                                        color=TEXT_WHITE,
-                                    ),
-                                    ft.Row(
-                                        spacing=4,
-                                        controls=[
-                                            ft.Text(
-                                                f"مدرس: {teacher_name}",
-                                                size=12,
-                                                color=TEXT_MUTED,
-                                            ),
-                                            ft.Icon(
-                                                ft.Icons.PERSON_OUTLINE,
-                                                size=14,
-                                                color=TEXT_MUTED,
-                                            ),
-                                        ],
-                                    ),
-                                ],
-                            ),
-                            ft.Container(
-                                width=44,
-                                height=44,
-                                border_radius=10,
-                                bgcolor="rgba(123, 44, 191, 0.2)",
-                                alignment=ft.Alignment(0, 0),
-                                content=ft.Icon(
-                                    ft.Icons.BOOK_ROUNDED,
-                                    color=PURPLE_START,
-                                    size=22,
                                 ),
                             ),
                         ],

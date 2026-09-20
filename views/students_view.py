@@ -631,6 +631,650 @@ class StudentsView(ft.Container):
             ],
         )
 
+import flet as ft
+from datetime import datetime, timedelta
+import sqlite3
+from database import Database, DB_NAME
+
+# --- پالت رنگی مدرن ---
+BG_MAIN = "#0B132B"
+CARD_BG = "#1C2541"
+TEXT_WHITE = "#FFFFFF"
+TEXT_MUTED = "#8D99AE"
+PURPLE_START = "#7B2CBF"
+PURPLE_DARK = "#480CA8"
+ACCENT_CYAN = "#00B4D8"
+BORDER_COLOR = "#3A506B"
+
+# رنگ‌های وضعیت حضور و غیاب
+COLOR_PRESENT = "#10B981"       # سبز (حاضر)
+COLOR_ABSENT = "#EF4444"        # قرمز (غیبت)
+COLOR_EXCUSED = "#F59E0B"       # نارنجی (غیبت موجه)
+
+WEEKDAYS = [
+    "شنبه",
+    "یکشنبه",
+    "دوشنبه",
+    "سه‌شنبه",
+    "چهارشنبه",
+    "پنج‌شنبه",
+    "جمعه",
+]
+
+
+def gregorian_to_jalali(gy, gm, gd):
+    """تبدیل تاریخ میلادی به شمسی بدون نیاز به کتابخانه جانبی"""
+    g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+    if gm > 2:
+        gy2 = gy
+    else:
+        gy2 = gy - 1
+    days = 355666 + (365 * gy) + ((gy2 + 3) // 4) - ((gy2 + 99) // 100) + ((gy2 + 399) // 400) + gd + g_d_m[gm - 1]
+    jy = -1595 + (33 * (days // 12053))
+    days %= 12053
+    jy += 4 * (days // 1461)
+    days %= 1461
+    if days > 365:
+        jy += (days - 1) // 365
+        days = (days - 1) % 365
+    if days < 186:
+        jm = 1 + (days // 31)
+        jd = 1 + (days % 31)
+    else:
+        jm = 7 + ((days - 186) // 30)
+        jd = 1 + ((days - 186) % 30)
+    return f"{jy:04d}/{jm:02d}/{jd:02d}"
+
+
+class StudentsView(ft.Container):
+    def __init__(
+        self,
+        page: ft.Page,
+        class_id=None,
+        class_name=None,
+        class_title=None,
+        on_back=None,
+        **kwargs,
+    ):
+        super().__init__(expand=True)
+        self._current_page = page
+        
+        # تبدیل امن class_id به مقدار عددی در صورت امکان
+        try:
+            self.class_id = int(class_id) if class_id is not None else None
+        except Exception:
+            self.class_id = class_id
+
+        self.class_name = class_name or class_title or "کلاس بدون نام"
+        self.on_back = on_back
+        self.db = Database()
+        self.bgcolor = BG_MAIN
+
+        # تاریخ روز جاری
+        self.current_dt = datetime.now()
+        self.selected_date_str = gregorian_to_jalali(
+            self.current_dt.year, self.current_dt.month, self.current_dt.day
+        )
+        self.selected_day = self.get_persian_weekday(self.current_dt)
+
+        # دیکشنری نگهداری وضعیت حضور و غیاب
+        self.attendance_map = {}
+
+        # ستون لیست هنرجویان ریسپانسیو
+        self.students_column = ft.Column(
+            spacing=10,
+            scroll=ft.ScrollMode.AUTO,
+            expand=True,
+        )
+
+        # فیلدهای فرم افزودن هنرجو
+        self.student_name_input = ft.TextField(
+            label="نام و نام خانوادگی",
+            border_color=BORDER_COLOR,
+            focused_border_color=PURPLE_START,
+            color=TEXT_WHITE,
+            text_align=ft.TextAlign.RIGHT,
+        )
+
+        self.student_phone_input = ft.TextField(
+            label="شماره تماس",
+            border_color=BORDER_COLOR,
+            focused_border_color=PURPLE_START,
+            color=TEXT_WHITE,
+            text_align=ft.TextAlign.RIGHT,
+            keyboard_type=ft.KeyboardType.PHONE,
+        )
+
+        # ساخت محتوای صفحه
+        self.content = self.build_page_content()
+
+        # بارگذاری وضعیت‌ها و هنرجویان
+        self.load_attendance_records()
+        self.load_students(refresh=False)
+
+    def get_active_page(self):
+        return self._current_page or getattr(self, "page", None)
+
+    def get_persian_weekday(self, dt):
+        mapping = {
+            5: "شنبه",
+            6: "یکشنبه",
+            0: "دوشنبه",
+            1: "سه‌شنبه",
+            2: "چهارشنبه",
+            3: "پنج‌شنبه",
+            4: "جمعه",
+        }
+        return mapping.get(dt.weekday(), "شنبه")
+
+    def change_day_by_offset(self, days_offset):
+        self.current_dt += timedelta(days=days_offset)
+        self.selected_date_str = gregorian_to_jalali(
+            self.current_dt.year, self.current_dt.month, self.current_dt.day
+        )
+        self.selected_day = self.get_persian_weekday(self.current_dt)
+        self.content = self.build_page_content()
+        self.load_attendance_records()
+        self.load_students(refresh=True)
+
+    def select_day(self, day_name):
+        self.selected_day = day_name
+        self.content = self.build_page_content()
+        self.load_attendance_records()
+        self.load_students(refresh=True)
+
+    def build_header(self):
+        """هدر ریسپانسیو و بهینه"""
+        return ft.Container(
+            padding=ft.Padding(left=12, right=12, top=10, bottom=10),
+            bgcolor="#0D1B2A",
+            content=ft.Row(
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                controls=[
+                    ft.Row(
+                        spacing=2,
+                        tight=True,
+                        controls=[
+                            ft.IconButton(
+                                icon=ft.Icons.ARROW_BACK_IOS_NEW_ROUNDED,
+                                icon_color=TEXT_WHITE,
+                                icon_size=18,
+                                tooltip="بازگشت",
+                                on_click=self.handle_back,
+                            ),
+                            ft.IconButton(
+                                icon=ft.Icons.INSIGHTS_ROUNDED,
+                                icon_color=COLOR_PRESENT,
+                                icon_size=20,
+                                tooltip="درصد حضور هنرجویان",
+                                on_click=self.open_attendance_stats_dialog,
+                            ),
+                            ft.IconButton(
+                                icon=ft.Icons.HISTORY_ROUNDED,
+                                icon_color=ACCENT_CYAN,
+                                icon_size=20,
+                                tooltip="جلسات برگزار شده",
+                                on_click=self.open_sessions_history_dialog,
+                            ),
+                        ],
+                    ),
+                    ft.Row(
+                        spacing=8,
+                        tight=True,
+                        controls=[
+                            ft.Column(
+                                spacing=1,
+                                horizontal_alignment=ft.CrossAxisAlignment.END,
+                                tight=True,
+                                controls=[
+                                    ft.Text(
+                                        f"کلاس: {self.class_name}",
+                                        size=14,
+                                        weight=ft.FontWeight.BOLD,
+                                        color=TEXT_WHITE,
+                                    ),
+                                    ft.Text(
+                                        "ثبت و مدیریت حضور غیاب",
+                                        size=10,
+                                        color=TEXT_MUTED,
+                                    ),
+                                ],
+                            ),
+                            ft.CircleAvatar(
+                                radius=16,
+                                bgcolor=PURPLE_START,
+                                content=ft.Icon(
+                                    ft.Icons.GROUPS_ROUNDED,
+                                    color=TEXT_WHITE,
+                                    size=16,
+                                ),
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+        )
+
+    def build_date_and_days_section(self):
+        """بخش تاریخ و روزهای هفته بدون بیرون‌زدگی"""
+        day_buttons = []
+        for day in WEEKDAYS:
+            is_active = (day == self.selected_day)
+            day_buttons.append(
+                ft.Container(
+                    content=ft.Text(
+                        day,
+                        size=11,
+                        weight=ft.FontWeight.BOLD if is_active else ft.FontWeight.NORMAL,
+                        color=TEXT_WHITE if is_active else TEXT_MUTED,
+                    ),
+                    padding=ft.Padding(left=10, right=10, top=5, bottom=5),
+                    border_radius=16,
+                    bgcolor=PURPLE_START if is_active else "#141E33",
+                    border=ft.Border.all(
+                        1, PURPLE_START if is_active else BORDER_COLOR
+                    ),
+                    on_click=lambda e, d=day: self.select_day(d),
+                )
+            )
+
+        return ft.Container(
+            padding=ft.Padding(left=12, right=12, top=6, bottom=4),
+            content=ft.Column(
+                spacing=8,
+                controls=[
+                    ft.Container(
+                        padding=ft.Padding(left=8, right=8, top=4, bottom=4),
+                        border_radius=8,
+                        bgcolor="#141E33",
+                        border=ft.Border.all(1, BORDER_COLOR),
+                        content=ft.Row(
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                            controls=[
+                                ft.IconButton(
+                                    icon=ft.Icons.CHEVRON_LEFT_ROUNDED,
+                                    icon_color=TEXT_WHITE,
+                                    icon_size=20,
+                                    tooltip="روز بعد",
+                                    on_click=lambda e: self.change_day_by_offset(1),
+                                ),
+                                ft.Row(
+                                    spacing=6,
+                                    tight=True,
+                                    controls=[
+                                        ft.Text(
+                                            f"تاریخ شمسی: {self.selected_date_str}",
+                                            color=TEXT_WHITE,
+                                            size=12,
+                                            weight=ft.FontWeight.BOLD,
+                                        ),
+                                        ft.Icon(
+                                            ft.Icons.CALENDAR_MONTH_ROUNDED,
+                                            color=ACCENT_CYAN,
+                                            size=16,
+                                        ),
+                                    ],
+                                ),
+                                ft.IconButton(
+                                    icon=ft.Icons.CHEVRON_RIGHT_ROUNDED,
+                                    icon_color=TEXT_WHITE,
+                                    icon_size=20,
+                                    tooltip="روز قبل",
+                                    on_click=lambda e: self.change_day_by_offset(-1),
+                                ),
+                            ],
+                        ),
+                    ),
+                    ft.Column(
+                        horizontal_alignment=ft.CrossAxisAlignment.END,
+                        spacing=4,
+                        controls=[
+                            ft.Text(
+                                "انتخاب روز جلسه:",
+                                size=11,
+                                color=TEXT_MUTED,
+                                weight=ft.FontWeight.BOLD,
+                            ),
+                            ft.Row(
+                                scroll=ft.ScrollMode.AUTO,
+                                spacing=6,
+                                alignment=ft.MainAxisAlignment.END,
+                                controls=day_buttons,
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+        )
+
+    def build_actions_bar(self):
+        """نوار دکمه‌های عملیاتی شامل دکمه درصد حضور"""
+        return ft.Container(
+            padding=ft.Padding(left=12, right=12, top=4, bottom=6),
+            content=ft.Row(
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                controls=[
+                    ft.Row(
+                        spacing=6,
+                        tight=True,
+                        controls=[
+                            ft.ElevatedButton(
+                                content=ft.Row(
+                                    controls=[
+                                        ft.Icon(
+                                            ft.Icons.PERSON_ADD_ALT_1_ROUNDED,
+                                            color=TEXT_WHITE,
+                                            size=14,
+                                        ),
+                                        ft.Text(
+                                            "افزودن هنرجو",
+                                            color=TEXT_WHITE,
+                                            weight=ft.FontWeight.BOLD,
+                                            size=11,
+                                        ),
+                                    ],
+                                    spacing=4,
+                                    tight=True,
+                                ),
+                                bgcolor=PURPLE_DARK,
+                                height=34,
+                                style=ft.ButtonStyle(
+                                    padding=ft.Padding(left=8, right=8, top=0, bottom=0),
+                                    shape=ft.RoundedRectangleBorder(radius=8),
+                                ),
+                                on_click=self.open_add_student_dialog,
+                            ),
+                            ft.OutlinedButton(
+                                content=ft.Row(
+                                    controls=[
+                                        ft.Icon(
+                                            ft.Icons.CALENDAR_VIEW_MONTH_ROUNDED,
+                                            color=ACCENT_CYAN,
+                                            size=14,
+                                        ),
+                                        ft.Text(
+                                            "جلسات",
+                                            color=TEXT_WHITE,
+                                            size=11,
+                                        ),
+                                    ],
+                                    spacing=4,
+                                    tight=True,
+                                ),
+                                height=34,
+                                style=ft.ButtonStyle(
+                                    padding=ft.Padding(left=8, right=8, top=0, bottom=0),
+                                    shape=ft.RoundedRectangleBorder(radius=8),
+                                    side=ft.BorderSide(1, BORDER_COLOR),
+                                ),
+                                on_click=self.open_sessions_history_dialog,
+                            ),
+                            ft.OutlinedButton(
+                                content=ft.Row(
+                                    controls=[
+                                        ft.Icon(
+                                            ft.Icons.PIE_CHART_ROUNDED,
+                                            color=COLOR_PRESENT,
+                                            size=14,
+                                        ),
+                                        ft.Text(
+                                            "درصد حضور",
+                                            color=TEXT_WHITE,
+                                            size=11,
+                                        ),
+                                    ],
+                                    spacing=4,
+                                    tight=True,
+                                ),
+                                height=34,
+                                style=ft.ButtonStyle(
+                                    padding=ft.Padding(left=8, right=8, top=0, bottom=0),
+                                    shape=ft.RoundedRectangleBorder(radius=8),
+                                    side=ft.BorderSide(1, BORDER_COLOR),
+                                ),
+                                on_click=self.open_attendance_stats_dialog,
+                            ),
+                        ],
+                    ),
+                    ft.Text(
+                        f"وضعیت: {self.selected_day}",
+                        size=12,
+                        weight=ft.FontWeight.BOLD,
+                        color=ACCENT_CYAN,
+                    ),
+                ],
+            ),
+        )
+
+    def load_attendance_records(self):
+        if not self.class_id:
+            return
+        try:
+            records = self.db.get_attendance_by_date(self.class_id, self.selected_date_str)
+            for r in (records or []):
+                s_id = r["student_id"] if isinstance(r, (dict, sqlite3.Row)) else r[0]
+                status = r["status"] if isinstance(r, (dict, sqlite3.Row)) else (r[3] if len(r) > 3 else r[1])
+                if status and status != 'absent':
+                    self.attendance_map[(self.selected_date_str, s_id)] = status
+        except Exception:
+            pass
+
+    def set_attendance(self, student_id, status_key):
+        key = (self.selected_date_str, student_id)
+        if self.attendance_map.get(key) == status_key:
+            self.attendance_map.pop(key, None)
+            new_status = 'absent'
+        else:
+            self.attendance_map[key] = status_key
+            new_status = status_key
+
+        saved = False
+        try:
+            self.db.set_attendance(student_id, self.selected_date_str, new_status)
+            saved = True
+        except Exception:
+            pass
+
+        if not saved:
+            try:
+                conn = sqlite3.connect(DB_NAME)
+                cur = conn.cursor()
+                cur.execute(
+                    """
+                    INSERT INTO attendance (student_id, date, status)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(student_id, date)
+                    DO UPDATE SET status = excluded.status
+                    """,
+                    (student_id, self.selected_date_str, new_status)
+                )
+                conn.commit()
+                conn.close()
+            except Exception:
+                pass
+
+        self.load_students(refresh=True)
+
+    def delete_session_by_date(self, target_date):
+        keys_to_del = [k for k in self.attendance_map.keys() if k[0] == target_date]
+        for k in keys_to_del:
+            self.attendance_map.pop(k, None)
+
+        try:
+            self.db.delete_attendance_date(self.class_id, target_date)
+        except Exception:
+            try:
+                conn = sqlite3.connect(DB_NAME)
+                cur = conn.cursor()
+                cur.execute(
+                    """
+                    DELETE FROM attendance
+                    WHERE date = ? AND student_id IN (
+                        SELECT id FROM students WHERE class_id = ?
+                    )
+                    """,
+                    (target_date, self.class_id)
+                )
+                conn.commit()
+                conn.close()
+            except Exception:
+                pass
+
+        self.load_students(refresh=True)
+
+    def open_sessions_history_dialog(self, e=None):
+        pg = self.get_active_page()
+        if not pg:
+            return
+
+        recorded_dates = set()
+        for k in self.attendance_map.keys():
+            recorded_dates.add(k[0])
+
+        try:
+            dates = self.db.get_class_held_dates(self.class_id)
+            for d in (dates or []):
+                if d:
+                    recorded_dates.add(str(d))
+        except Exception:
+            try:
+                conn = sqlite3.connect(DB_NAME)
+                cur = conn.cursor()
+                cur.execute(
+                    """
+                    SELECT DISTINCT a.date
+                    FROM attendance AS a
+                    INNER JOIN students AS s ON a.student_id = s.id
+                    WHERE s.class_id = ?
+                    """,
+                    (self.class_id,)
+                )
+                for r in cur.fetchall():
+                    if r and r[0]:
+                        recorded_dates.add(str(r[0]))
+                conn.close()
+            except Exception:
+                pass
+
+        sessions_list = sorted(list(recorded_dates), reverse=True)
+        history_items = []
+
+        def close_history_dlg(ev=None):
+            history_dialog.open = False
+            pg.update()
+
+        def confirm_remove_session(date_val):
+            close_history_dlg()
+            self.delete_session_by_date(date_val)
+
+        if not sessions_list:
+            history_items.append(
+                ft.Container(
+                    alignment=ft.Alignment(0, 0),
+                    padding=20,
+                    content=ft.Column(
+                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        spacing=6,
+                        controls=[
+                            ft.Icon(
+                                ft.Icons.EVENT_BUSY_ROUNDED,
+                                size=32,
+                                color=TEXT_MUTED,
+                            ),
+                            ft.Text(
+                                "تاکنون جلسه‌ای ثبت نشده است",
+                                color=TEXT_MUTED,
+                                size=11,
+                                text_align=ft.TextAlign.CENTER,
+                            ),
+                        ],
+                    ),
+                )
+            )
+        else:
+            for idx, s_date in enumerate(sessions_list, 1):
+                history_items.append(
+                    ft.Container(
+                        bgcolor="#141E33",
+                        border_radius=8,
+                        padding=ft.Padding(left=8, right=8, top=6, bottom=6),
+                        border=ft.Border.all(1, BORDER_COLOR),
+                        content=ft.Row(
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                            controls=[
+                                ft.IconButton(
+                                    icon=ft.Icons.DELETE_FOREVER_ROUNDED,
+                                    icon_color=ft.Colors.RED_400,
+                                    icon_size=18,
+                                    tooltip="حذف جلسه",
+                                    on_click=lambda ev, d=s_date: confirm_remove_session(d),
+                                ),
+                                ft.Row(
+                                    spacing=6,
+                                    tight=True,
+                                    controls=[
+                                        ft.Text(
+                                            f"جلسه {idx}: {s_date}",
+                                            color=TEXT_WHITE,
+                                            size=12,
+                                            weight=ft.FontWeight.BOLD,
+                                        ),
+                                        ft.Icon(
+                                            ft.Icons.CHECK_CIRCLE_ROUNDED,
+                                            color=COLOR_PRESENT,
+                                            size=14,
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                    )
+                )
+
+        history_dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Row(
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                controls=[
+                    ft.Text(
+                        "جلسات برگزار شده",
+                        weight=ft.FontWeight.BOLD,
+                        size=14,
+                        color=TEXT_WHITE,
+                    ),
+                    ft.Icon(
+                        ft.Icons.HISTORY_TOGGLE_OFF_ROUNDED,
+                        color=ACCENT_CYAN,
+                        size=20,
+                    ),
+                ],
+            ),
+            content=ft.Container(
+                content=ft.Column(
+                    controls=history_items,
+                    spacing=6,
+                    scroll=ft.ScrollMode.AUTO,
+                    tight=True,
+                ),
+                width=320,
+                height=240 if len(sessions_list) > 3 else None,
+                padding=4,
+            ),
+            bgcolor=CARD_BG,
+            actions_alignment=ft.MainAxisAlignment.END,
+            actions=[
+                ft.ElevatedButton(
+                    content=ft.Text("بستن", color=TEXT_WHITE, size=12),
+                    bgcolor=PURPLE_DARK,
+                    on_click=close_history_dlg,
+                ),
+            ],
+        )
+
         pg.overlay.append(history_dialog)
         history_dialog.open = True
         pg.update()
@@ -645,7 +1289,6 @@ class StudentsView(ft.Container):
             stats_dialog.open = False
             pg.update()
 
-        # استخراج کل جلسات و داده‌های حضور
         total_sessions = 0
         students_stats = []
 
@@ -654,7 +1297,6 @@ class StudentsView(ft.Container):
             conn.row_factory = sqlite3.Row
             cur = conn.cursor()
 
-            # گرفتن تعداد کل جلسات ثبت شده برای کلاس
             cur.execute(
                 """
                 SELECT COUNT(DISTINCT a.date) as total
@@ -668,18 +1310,22 @@ class StudentsView(ft.Container):
             if row and row["total"]:
                 total_sessions = row["total"]
 
-            # گرفتن لیست هنرجویان کلاس
-            cur.execute(
-                "SELECT id, full_name FROM students WHERE class_id = ? ORDER BY full_name ASC",
-                (self.class_id,)
-            )
+            try:
+                cur.execute(
+                    "SELECT id, full_name FROM students WHERE class_id = ? ORDER BY full_name ASC",
+                    (self.class_id,)
+                )
+            except Exception:
+                cur.execute(
+                    "SELECT id, name AS full_name FROM students WHERE class_id = ? ORDER BY name ASC",
+                    (self.class_id,)
+                )
             students = cur.fetchall()
 
             for s in students:
                 s_id = s["id"]
                 s_name = s["full_name"]
 
-                # شمارش حاضر، غیبت موجه و غیرموجه
                 cur.execute(
                     "SELECT status, COUNT(*) as cnt FROM attendance WHERE student_id = ? GROUP BY status",
                     (s_id,)
@@ -692,7 +1338,6 @@ class StudentsView(ft.Container):
                 j_count = status_counts["justified"]
                 u_count = status_counts["unexcused"] + status_counts["absent"]
 
-                # محاسبه درصد حضور
                 effective_total = max(total_sessions, (p_count + j_count + u_count))
                 if effective_total > 0:
                     percent = round((p_count / effective_total) * 100, 1)
@@ -712,7 +1357,6 @@ class StudentsView(ft.Container):
         except Exception:
             pass
 
-        # مرتب‌سازی بر اساس بالاترین درصد حضور
         students_stats.sort(key=lambda x: x["percent"], reverse=True)
 
         stats_cards = []
@@ -734,7 +1378,6 @@ class StudentsView(ft.Container):
         else:
             for item in students_stats:
                 pct = item["percent"]
-                # انتخاب رنگ نمودار بر اساس عملکرد
                 bar_color = COLOR_PRESENT if pct >= 75 else (COLOR_EXCUSED if pct >= 50 else COLOR_ABSENT)
 
                 stats_cards.append(
@@ -746,7 +1389,6 @@ class StudentsView(ft.Container):
                         content=ft.Column(
                             spacing=6,
                             controls=[
-                                # ردیف نام و درصد
                                 ft.Row(
                                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                                     controls=[
@@ -769,14 +1411,12 @@ class StudentsView(ft.Container):
                                         ),
                                     ],
                                 ),
-                                # نمودار پیشرفت خطی (Progress Bar)
                                 ft.ProgressBar(
                                     value=pct / 100.0 if pct > 0 else 0.0,
                                     color=bar_color,
                                     bgcolor="#0B132B",
                                     height=6,
                                 ),
-                                # جزییات ریز جلسات (حاضر / غیبت / موجه)
                                 ft.Row(
                                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                                     controls=[
@@ -921,7 +1561,7 @@ class StudentsView(ft.Container):
                 try:
                     s_name = student["name"]
                 except Exception:
-                    s_name = getattr(student, "full_name", None)
+                    s_name = getattr(student, "full_name", getattr(student, "name", None))
 
             try:
                 s_phone = student["phone"]
@@ -934,7 +1574,8 @@ class StudentsView(ft.Container):
                 s_name = str(student[1])
                 s_phone = str(student[2])
             elif len(student) >= 4:
-                if isinstance(student[1], (int, float)) or (isinstance(student[1], str) and student[1].isdigit() and len(student[1]) < 6):
+                # اگر آیتم دوم آیدی کلاس بود (id, class_id, name, phone)
+                if isinstance(student[1], (int, float)) or (isinstance(student[1], str) and str(student[1]).isdigit() and len(str(student[1])) < 6):
                     s_name = str(student[2]) if len(student) > 2 else ""
                     s_phone = str(student[3]) if len(student) > 3 else ""
                 else:
@@ -945,9 +1586,9 @@ class StudentsView(ft.Container):
             s_name = getattr(student, "full_name", None) or getattr(student, "name", None)
             s_phone = getattr(student, "phone", None)
 
-        if not s_name or str(s_name).strip() == "" or str(s_name).strip() == "None":
+        if not s_name or str(s_name).strip() in ("", "None"):
             s_name = f"هنرجو کد {s_id}" if s_id else "هنرجوی بدون نام"
-        if not s_phone or str(s_phone).strip() == "" or str(s_phone).strip() == "None":
+        if not s_phone or str(s_phone).strip() in ("", "None"):
             s_phone = "ندارد"
 
         return s_id, str(s_name), str(s_phone)
@@ -1064,10 +1705,16 @@ class StudentsView(ft.Container):
                 conn = sqlite3.connect(DB_NAME)
                 conn.row_factory = sqlite3.Row
                 cur = conn.cursor()
-                cur.execute(
-                    "SELECT id, class_id, full_name, phone FROM students WHERE class_id = ? ORDER BY id ASC",
-                    (self.class_id,)
-                )
+                try:
+                    cur.execute(
+                        "SELECT id, class_id, full_name, phone FROM students WHERE class_id = ? ORDER BY id ASC",
+                        (self.class_id,)
+                    )
+                except Exception:
+                    cur.execute(
+                        "SELECT id, class_id, name AS full_name, phone FROM students WHERE class_id = ? ORDER BY id ASC",
+                        (self.class_id,)
+                    )
                 students = cur.fetchall()
                 conn.close()
             except Exception:
@@ -1124,16 +1771,27 @@ class StudentsView(ft.Container):
             if not name:
                 return
 
+            saved = False
             try:
                 self.db.add_student(self.class_id, name, phone)
+                saved = True
             except Exception:
+                pass
+
+            if not saved:
                 try:
                     conn = sqlite3.connect(DB_NAME)
                     cur = conn.cursor()
-                    cur.execute(
-                        "INSERT INTO students (class_id, full_name, phone) VALUES (?, ?, ?)",
-                        (self.class_id, name, phone),
-                    )
+                    try:
+                        cur.execute(
+                            "INSERT INTO students (class_id, full_name, phone) VALUES (?, ?, ?)",
+                            (self.class_id, name, phone),
+                        )
+                    except Exception:
+                        cur.execute(
+                            "INSERT INTO students (class_id, name, phone) VALUES (?, ?, ?)",
+                            (self.class_id, name, phone),
+                        )
                     conn.commit()
                     conn.close()
                 except Exception:
@@ -1196,9 +1854,14 @@ class StudentsView(ft.Container):
             pg.update()
 
         def do_delete(e=None):
+            deleted = False
             try:
                 self.db.delete_student(student_id)
+                deleted = True
             except Exception:
+                pass
+
+            if not deleted:
                 try:
                     conn = sqlite3.connect(DB_NAME)
                     cur = conn.cursor()
