@@ -17,6 +17,52 @@ BORDER_COLOR = "#3A506B"
 DANGER_RED = "#EF476F"
 
 
+def pill_button(
+    text: str,
+    icon,
+    bgcolor: str,
+    on_click,
+    *,
+    text_color: str = TEXT_WHITE,
+    icon_color: str = TEXT_WHITE,
+    height: int = 42,
+    radius: int = 10,
+    padding_h: int = 12,
+    padding_v: int = 8,
+    text_size: int = 13,
+    icon_size: int = 18,
+    tooltip: str | None = None,
+):
+    """
+    دکمه سازگار با نسخه‌های مختلف Flet (به‌خصوص Android) بدون ElevatedButton.
+    """
+    return ft.Container(
+        height=height,
+        bgcolor=bgcolor,
+        border_radius=radius,
+        padding=ft.Padding(left=padding_h, right=padding_h, top=padding_v, bottom=padding_v),
+        ink=True,
+        tooltip=tooltip,
+        on_click=on_click,
+        alignment=ft.Alignment(0, 0),
+        content=ft.Row(
+            tight=True,
+            spacing=6,
+            alignment=ft.MainAxisAlignment.CENTER,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=[
+                ft.Icon(icon, size=icon_size, color=icon_color),
+                ft.Text(
+                    text,
+                    size=text_size,
+                    weight=ft.FontWeight.BOLD,
+                    color=text_color,
+                ),
+            ],
+        ),
+    )
+
+
 class ClassesView(ft.Container):
     def __init__(
         self,
@@ -80,7 +126,8 @@ class ClassesView(ft.Container):
             else:
                 method()
             return True
-        except Exception as err:
+        except Exception:
+            # یک تلاش دیگر با پارامتر
             try:
                 method(class_id)
                 return True
@@ -151,31 +198,15 @@ class ClassesView(ft.Container):
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 controls=[
-                    # دکمه کلاس جدید
-                    ft.ElevatedButton(
-                        content=ft.Row(
-                            controls=[
-                                ft.Icon(
-                                    ft.Icons.ADD_CIRCLE_OUTLINE,
-                                    color=TEXT_WHITE,
-                                    size=18,
-                                ),
-                                ft.Text(
-                                    "کلاس جدید",
-                                    color=TEXT_WHITE,
-                                    weight=ft.FontWeight.BOLD,
-                                    size=13,
-                                ),
-                            ],
-                            spacing=6,
-                            tight=True,
-                        ),
-                        bgcolor=PURPLE_DARK,
+                    # دکمه کلاس جدید (سازگار با Android)
+                    pill_button(
+                        "کلاس جدید",
+                        ft.Icons.ADD_CIRCLE_OUTLINE,
+                        PURPLE_DARK,
+                        self.open_add_dialog,
                         height=42,
-                        style=ft.ButtonStyle(
-                            shape=ft.RoundedRectangleBorder(radius=10),
-                        ),
-                        on_click=self.open_add_dialog,
+                        radius=10,
+                        tooltip="افزودن کلاس جدید",
                     ),
                     # مشخصات آموزشگاه + لوگو و دکمه خروج
                     ft.Row(
@@ -517,7 +548,12 @@ class ClassesView(ft.Container):
                                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                                     spacing=2,
                                     controls=[
-                                        ft.Text(str(present_count), color=ACCENT_GREEN, size=16, weight=ft.FontWeight.BOLD),
+                                        ft.Text(
+                                            str(present_count),
+                                            color=ACCENT_GREEN,
+                                            size=16,
+                                            weight=ft.FontWeight.BOLD,
+                                        ),
                                         ft.Text("حاضر", color=TEXT_MUTED, size=11),
                                     ],
                                 ),
@@ -525,7 +561,12 @@ class ClassesView(ft.Container):
                                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                                     spacing=2,
                                     controls=[
-                                        ft.Text(str(excused_count), color="#FFB703", size=16, weight=ft.FontWeight.BOLD),
+                                        ft.Text(
+                                            str(excused_count),
+                                            color="#FFB703",
+                                            size=16,
+                                            weight=ft.FontWeight.BOLD,
+                                        ),
                                         ft.Text("موجه", color=TEXT_MUTED, size=11),
                                     ],
                                 ),
@@ -533,7 +574,12 @@ class ClassesView(ft.Container):
                                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                                     spacing=2,
                                     controls=[
-                                        ft.Text(str(absent_count), color=DANGER_RED, size=16, weight=ft.FontWeight.BOLD),
+                                        ft.Text(
+                                            str(absent_count),
+                                            color=DANGER_RED,
+                                            size=16,
+                                            weight=ft.FontWeight.BOLD,
+                                        ),
                                         ft.Text("غایب", color=TEXT_MUTED, size=11),
                                     ],
                                 ),
@@ -774,9 +820,7 @@ class ClassesView(ft.Container):
             )
         else:
             for class_record in classes:
-                self.classes_column.controls.append(
-                    self.create_class_card(class_record)
-                )
+                self.classes_column.controls.append(self.create_class_card(class_record))
 
         self.content = self.build_ui()
 
@@ -832,14 +876,15 @@ class ClassesView(ft.Container):
                     content=ft.Text("انصراف", color=TEXT_MUTED),
                     on_click=lambda ev: self.close_popup(dialog),
                 ),
-                ft.ElevatedButton(
-                    content=ft.Text(
-                        "ذخیره کلاس",
-                        color=TEXT_WHITE,
-                        weight=ft.FontWeight.BOLD,
-                    ),
-                    bgcolor=PURPLE_DARK,
-                    on_click=do_save,
+                pill_button(
+                    "ذخیره کلاس",
+                    ft.Icons.SAVE_OUTLINED,
+                    PURPLE_DARK,
+                    do_save,
+                    height=40,
+                    radius=10,
+                    text_size=12,
+                    icon_size=16,
                 ),
             ],
         )
@@ -883,7 +928,6 @@ class ClassesView(ft.Container):
             # ۲. در صورتی که callback تعریف نشده باشد، تغییر صفحه مستقیم
             if pg:
                 try:
-                    # اگر main.py از مدیریت ویو و روتر استفاده می‌کند
                     if hasattr(pg, "views") and len(pg.views) > 1:
                         pg.views.pop()
                         pg.update()
@@ -918,14 +962,15 @@ class ClassesView(ft.Container):
                     content=ft.Text("انصراف", color=TEXT_MUTED),
                     on_click=lambda ev: self.close_popup(logout_dialog),
                 ),
-                ft.ElevatedButton(
-                    content=ft.Text(
-                        "بله، خارج شو",
-                        color=TEXT_WHITE,
-                        weight=ft.FontWeight.BOLD,
-                    ),
-                    bgcolor=DANGER_RED,
-                    on_click=execute_logout,
+                pill_button(
+                    "بله، خارج شو",
+                    ft.Icons.LOGOUT_ROUNDED,
+                    DANGER_RED,
+                    execute_logout,
+                    height=40,
+                    radius=10,
+                    text_size=12,
+                    icon_size=16,
                 ),
             ],
         )
@@ -967,14 +1012,15 @@ class ClassesView(ft.Container):
                     ),
                     on_click=lambda ev: self.close_popup(delete_dialog),
                 ),
-                ft.ElevatedButton(
-                    content=ft.Text(
-                        "حذف کلاس",
-                        color=TEXT_WHITE,
-                        weight=ft.FontWeight.BOLD,
-                    ),
-                    bgcolor=ft.Colors.RED_600,
-                    on_click=do_delete,
+                pill_button(
+                    "حذف کلاس",
+                    ft.Icons.DELETE_OUTLINE,
+                    ft.Colors.RED_600,
+                    do_delete,
+                    height=40,
+                    radius=10,
+                    text_size=12,
+                    icon_size=16,
                 ),
             ],
         )
