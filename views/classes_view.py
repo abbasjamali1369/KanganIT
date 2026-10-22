@@ -481,10 +481,10 @@ class ClassesView(ft.Container):
 
         try:
             if hasattr(self.db, "get_class_attendance_summary"):
-                stats = self.db.get_class_attendance_summary(class_id)
-                present_count = stats.get("present", 0)
-                absent_count = stats.get("absent", 0)
-                excused_count = stats.get("excused", 0)
+                stats = self.db.get_class_attendance_summary(class_id) or {}
+                present_count = int(stats.get("present", 0) or 0)
+                absent_count = int(stats.get("absent", 0) or 0)
+                excused_count = int(stats.get("excused", 0) or 0)
             elif hasattr(self.db, "get_attendance_by_class"):
                 records = self.db.get_attendance_by_class(class_id) or []
                 for r in records:
@@ -499,9 +499,7 @@ class ClassesView(ft.Container):
             print(f"Error fetching attendance stats: {err}")
 
         total_sessions = present_count + absent_count + excused_count
-        attendance_percent = (
-            round((present_count / total_sessions) * 100) if total_sessions > 0 else 0
-        )
+        attendance_percent = round((present_count / total_sessions) * 100) if total_sessions > 0 else 0
 
         stats_dialog = ft.AlertDialog(
             open=True,
@@ -658,9 +656,7 @@ class ClassesView(ft.Container):
             padding=14,
             border=ft.Border.all(1, BORDER_COLOR),
             ink=True,
-            on_click=lambda e, cid=class_id, cname=class_name: self.go_to_students(
-                cid, cname
-            ),
+            on_click=lambda e, cid=class_id, cname=class_name: self.go_to_students(cid, cname),
             content=ft.Column(
                 spacing=10,
                 controls=[
@@ -723,26 +719,20 @@ class ClassesView(ft.Container):
                                 icon=ft.Icons.DELETE_OUTLINE,
                                 icon_color=ft.Colors.RED_400,
                                 tooltip="حذف کلاس",
-                                on_click=lambda e, cid=class_id, cname=class_name: self.confirm_delete_dialog(
-                                    cid, cname
-                                ),
+                                on_click=lambda e, cid=class_id, cname=class_name: self.confirm_delete_dialog(cid, cname),
                             ),
                             ft.IconButton(
                                 icon=ft.Icons.BAR_CHART_ROUNDED,
                                 icon_color=ACCENT_CYAN,
                                 tooltip="درصد و آمار حضور و غیاب",
-                                on_click=lambda e, cid=class_id, cname=class_name: self.show_attendance_stats_dialog(
-                                    cid, cname
-                                ),
+                                on_click=lambda e, cid=class_id, cname=class_name: self.show_attendance_stats_dialog(cid, cname),
                             ),
                             ft.IconButton(
                                 icon=ft.Icons.ARROW_FORWARD_IOS_ROUNDED,
                                 icon_color=ACCENT_GREEN,
                                 icon_size=18,
                                 tooltip="مدیریت هنرجویان و حضور غیاب",
-                                on_click=lambda e, cid=class_id, cname=class_name: self.go_to_students(
-                                    cid, cname
-                                ),
+                                on_click=lambda e, cid=class_id, cname=class_name: self.go_to_students(cid, cname),
                             ),
                         ],
                     ),
@@ -838,13 +828,16 @@ class ClassesView(ft.Container):
         self.class_name_input.value = ""
         self.teacher_name_input.value = ""
 
+        dialog = None
+
         def do_save(ev=None):
             name = (self.class_name_input.value or "").strip()
             teacher = (self.teacher_name_input.value or "").strip()
             if name:
                 try:
                     self.db.add_class(name, teacher)
-                    self.close_popup(dialog)
+                    if dialog is not None:
+                        self.close_popup(dialog)
                     self.load_classes(refresh=True)
                 except Exception as err:
                     print(f"Error saving class: {err}")
@@ -897,8 +890,11 @@ class ClassesView(ft.Container):
         if pg is None:
             return
 
+        logout_dialog = None
+
         def execute_logout(ev=None):
-            self.close_popup(logout_dialog)
+            if logout_dialog is not None:
+                self.close_popup(logout_dialog)
 
             # پاک‌سازی سشن
             if pg and hasattr(pg, "session") and pg.session is not None:
@@ -983,9 +979,12 @@ class ClassesView(ft.Container):
         if pg is None:
             return
 
+        delete_dialog = None
+
         def do_delete(e=None):
             success = self.safe_delete_class(class_id)
-            self.close_popup(delete_dialog)
+            if delete_dialog is not None:
+                self.close_popup(delete_dialog)
             if success:
                 self.load_classes(refresh=True)
             else:
