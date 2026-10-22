@@ -80,16 +80,16 @@ class ClassesView(ft.Container):
             else:
                 method()
             return True
-        except Exception:
+        except Exception as err:
             try:
                 method(class_id)
                 return True
-            except Exception as err:
-                print(f"Error deleting class: {err}")
+            except Exception as e:
+                print(f"Error deleting class: {e}")
                 return False
 
     def build_top_navy_bar(self):
-        """نوار اطلاعات بالای صفحه با فاصله ایمن از بالا (برای نوار وضعیت موبایل)"""
+        """نوار اطلاعات بالای صفحه با فاصله ایمن از بالا"""
         return ft.Container(
             bgcolor=NAVY_HEADER,
             padding=ft.Padding(
@@ -177,7 +177,7 @@ class ClassesView(ft.Container):
                         ),
                         on_click=self.open_add_dialog,
                     ),
-                    # مشخصات آموزشگاه + لوگو و دکمه خروج دقیقا زیر لوگو
+                    # مشخصات آموزشگاه + لوگو و دکمه خروج
                     ft.Row(
                         spacing=12,
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -199,7 +199,7 @@ class ClassesView(ft.Container):
                                     ),
                                 ],
                             ),
-                            # ستون شامل لوگو و دکمه خروج قرمز زیر آن
+                            # ستون شامل لوگو و دکمه خروج زیر آن
                             ft.Column(
                                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                                 spacing=5,
@@ -213,7 +213,6 @@ class ClassesView(ft.Container):
                                             size=22,
                                         ),
                                     ),
-                                    # دکمه خروج دقیقاً زیر لوگو
                                     ft.Container(
                                         content=ft.Row(
                                             spacing=3,
@@ -442,7 +441,7 @@ class ClassesView(ft.Container):
     def show_attendance_stats_dialog(self, class_id, class_name):
         """نمایش پنجره آمار و درصد حضور و غیاب دوره"""
         pg = self.get_active_page()
-        if not pg:
+        if pg is None:
             return
 
         present_count = 0
@@ -465,62 +464,48 @@ class ClassesView(ft.Container):
                         excused_count += 1
                     elif "absent" in status or "غائب" in status or "غایب" in status:
                         absent_count += 1
-        except Exception:
-            pass
+        except Exception as err:
+            print(f"Error fetching attendance stats: {err}")
 
         total_sessions = present_count + absent_count + excused_count
         attendance_percent = (
             round((present_count / total_sessions) * 100) if total_sessions > 0 else 0
         )
 
-        def close_stats(e=None):
-            stats_dialog.open = False
-            pg.update()
-
         stats_dialog = ft.AlertDialog(
             open=True,
-            title=ft.Row(
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                controls=[
-                    ft.Icon(ft.Icons.INSIGHTS_ROUNDED, color=ACCENT_CYAN, size=22),
-                    ft.Text(
-                        f"آمار حضور و غیاب: {class_name}",
-                        size=15,
-                        weight=ft.FontWeight.BOLD,
-                        color=TEXT_WHITE,
-                    ),
-                ],
+            title=ft.Text(
+                f"آمار حضور و غیاب {class_name}",
+                weight=ft.FontWeight.BOLD,
+                text_align=ft.TextAlign.RIGHT,
+                color=TEXT_WHITE,
+                size=16,
             ),
             content=ft.Container(
-                width=340,
+                width=320,
                 padding=10,
                 content=ft.Column(
                     tight=True,
                     spacing=14,
                     controls=[
-                        ft.Container(
-                            padding=12,
-                            border_radius=10,
-                            bgcolor="rgba(0, 180, 216, 0.1)",
-                            content=ft.Row(
-                                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                                controls=[
-                                    ft.Text(
-                                        f"{attendance_percent}%",
-                                        size=20,
-                                        weight=ft.FontWeight.BOLD,
-                                        color=ACCENT_CYAN,
-                                    ),
-                                    ft.Text(
-                                        "میانگین درصد حضور:",
-                                        color=TEXT_WHITE,
-                                        weight=ft.FontWeight.W_500,
-                                    ),
-                                ],
-                            ),
+                        ft.Row(
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                            controls=[
+                                ft.Text(
+                                    f"{attendance_percent}%",
+                                    size=22,
+                                    weight=ft.FontWeight.BOLD,
+                                    color=ACCENT_GREEN,
+                                ),
+                                ft.Text(
+                                    "درصد کل حضور:",
+                                    color=TEXT_WHITE,
+                                    size=14,
+                                ),
+                            ],
                         ),
                         ft.ProgressBar(
-                            value=attendance_percent / 100 if total_sessions > 0 else 0,
+                            value=(attendance_percent / 100) if total_sessions > 0 else 0,
                             color=ACCENT_CYAN,
                             bgcolor=BORDER_COLOR,
                             height=8,
@@ -561,14 +546,55 @@ class ClassesView(ft.Container):
             actions=[
                 ft.TextButton(
                     content=ft.Text("بستن", color=ACCENT_CYAN),
-                    on_click=close_stats,
+                    on_click=lambda e: self.close_popup(stats_dialog),
                 )
             ],
             actions_alignment=ft.MainAxisAlignment.CENTER,
         )
 
-        pg.overlay.append(stats_dialog)
-        pg.update()
+        self.show_popup(stats_dialog)
+
+    def show_popup(self, dialog):
+        """نمایش سازگار انواع دیالوگ در نسخه‌های مختلف Flet"""
+        pg = self.get_active_page()
+        if not pg:
+            return
+        try:
+            if hasattr(pg, "open"):
+                pg.open(dialog)
+            elif hasattr(pg, "overlay"):
+                pg.overlay.append(dialog)
+                dialog.open = True
+                pg.update()
+            else:
+                pg.dialog = dialog
+                dialog.open = True
+                pg.update()
+        except Exception:
+            try:
+                pg.dialog = dialog
+                dialog.open = True
+                pg.update()
+            except Exception as e:
+                print(f"Error opening dialog: {e}")
+
+    def close_popup(self, dialog):
+        """بستن ایمن دیالوگ در نسخه‌های مختلف Flet"""
+        pg = self.get_active_page()
+        if not pg:
+            return
+        try:
+            if hasattr(pg, "close"):
+                pg.close(dialog)
+            else:
+                dialog.open = False
+                pg.update()
+        except Exception:
+            dialog.open = False
+            try:
+                pg.update()
+            except Exception:
+                pass
 
     def create_class_card(self, class_record):
         """کارت هر دوره با چیدمان دو ردیفه: اطلاعات در بالا و دکمه‌های عملیاتی در پایین"""
@@ -592,12 +618,10 @@ class ClassesView(ft.Container):
             content=ft.Column(
                 spacing=10,
                 controls=[
-                    # ردیف بالا: اطلاعات دوره و آیکون اصلی
                     ft.Row(
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
                         controls=[
-                            # ستون نام دوره و مدرس
                             ft.Column(
                                 spacing=3,
                                 horizontal_alignment=ft.CrossAxisAlignment.END,
@@ -631,7 +655,6 @@ class ClassesView(ft.Container):
                                     ),
                                 ],
                             ),
-                            # آیکون کتاب سمت راست
                             ft.Container(
                                 width=44,
                                 height=44,
@@ -646,7 +669,6 @@ class ClassesView(ft.Container):
                             ),
                         ],
                     ),
-                    # ردیف پایین: سه آیکون عملیاتی (حذف، آمار و ورود به لیست هنرجویان)
                     ft.Row(
                         alignment=ft.MainAxisAlignment.START,
                         spacing=0,
@@ -707,35 +729,25 @@ class ClassesView(ft.Container):
                                 weight=ft.FontWeight.BOLD,
                                 color=TEXT_WHITE,
                             ),
-                            ft.Icon(
-                                ft.Icons.LIST_ALT_ROUNDED,
-                                size=18,
-                                color=PURPLE_START,
-                            ),
                         ],
                     ),
                 ),
                 ft.Container(
                     expand=True,
-                    padding=ft.Padding(
-                        left=16,
-                        right=16,
-                        top=0,
-                        bottom=10,
-                    ),
+                    padding=ft.Padding(left=16, right=16, top=4, bottom=16),
                     content=self.classes_column,
                 ),
             ],
         )
 
     def load_classes(self, refresh=True):
-        """بارگذاری کلاس‌ها و بروزرسانی کل UI"""
+        """بارگذاری مجدد لیست کلاس‌ها از دیتابیس"""
         self.classes_column.controls.clear()
-
+        classes = []
         try:
             classes = self.db.get_all_classes() or []
-        except Exception:
-            classes = []
+        except Exception as err:
+            print(f"Error fetching classes: {err}")
 
         if not classes:
             self.classes_column.controls.append(
@@ -766,7 +778,6 @@ class ClassesView(ft.Container):
                     self.create_class_card(class_record)
                 )
 
-        # بازسازی کامل UI برای بروزشدن کارت‌های آمار بالای صفحه
         self.content = self.build_ui()
 
         if refresh:
@@ -775,25 +786,24 @@ class ClassesView(ft.Container):
                 pg.update()
 
     def open_add_dialog(self, e=None):
-        """باز کردن دیالوگ افزودن کلاس"""
+        """باز کردن دیالوگ افزودن کلاس جدید"""
         pg = self.get_active_page()
-        if not pg:
+        if pg is None:
             return
 
         self.class_name_input.value = ""
         self.teacher_name_input.value = ""
 
-        def close_dialog(ev=None):
-            dialog.open = False
-            pg.update()
-
         def do_save(ev=None):
             name = (self.class_name_input.value or "").strip()
             teacher = (self.teacher_name_input.value or "").strip()
             if name:
-                self.db.add_class(name, teacher)
-                close_dialog()
-                self.load_classes(refresh=True)
+                try:
+                    self.db.add_class(name, teacher)
+                    self.close_popup(dialog)
+                    self.load_classes(refresh=True)
+                except Exception as err:
+                    print(f"Error saving class: {err}")
 
         dialog = ft.AlertDialog(
             open=True,
@@ -820,7 +830,7 @@ class ClassesView(ft.Container):
             actions=[
                 ft.TextButton(
                     content=ft.Text("انصراف", color=TEXT_MUTED),
-                    on_click=close_dialog,
+                    on_click=lambda ev: self.close_popup(dialog),
                 ),
                 ft.ElevatedButton(
                     content=ft.Text(
@@ -834,47 +844,58 @@ class ClassesView(ft.Container):
             ],
         )
 
-        pg.overlay.append(dialog)
-        pg.update()
+        self.show_popup(dialog)
 
     def confirm_logout_dialog(self, e=None):
-        """دیالوگ خروج امن و حرفه‌ای"""
+        """دیالوگ خروج قطعی و هدایت به صفحه ورود"""
         pg = self.get_active_page()
-        if not pg:
+        if pg is None:
             return
 
-        def do_close(ev=None):
-            logout_dialog.open = False
-            pg.update()
+        def execute_logout(ev=None):
+            self.close_popup(logout_dialog)
 
-        def do_logout(ev=None):
-            do_close()
-            # پاک کردن سشن
+            # پاک‌سازی سشن
             if pg and hasattr(pg, "session") and pg.session is not None:
                 try:
                     if hasattr(pg.session, "clear"):
                         pg.session.clear()
-                except Exception:
-                    pass
+                    elif hasattr(pg.session, "set"):
+                        pg.session.set("user_id", None)
+                        pg.session.set("username", None)
+                    else:
+                        try:
+                            pg.session["user_id"] = None
+                            pg.session["username"] = None
+                        except Exception:
+                            pass
+                except Exception as err:
+                    print(f"Error clearing session: {err}")
 
-            # در صورتی که تابع خروج اختصاصی ست شده باشد
+            # ۱. اجرای تابع on_logout در صورت وجود
             if callable(self.on_logout):
                 try:
                     self.on_logout()
                     return
-                except Exception:
-                    pass
+                except Exception as err:
+                    print(f"Error in on_logout callback: {err}")
 
-            # رفتن به صفحه ورود
+            # ۲. در صورتی که callback تعریف نشده باشد، تغییر صفحه مستقیم
             if pg:
                 try:
-                    pg.go("/login")
+                    # اگر main.py از مدیریت ویو و روتر استفاده می‌کند
+                    if hasattr(pg, "views") and len(pg.views) > 1:
+                        pg.views.pop()
+                        pg.update()
+                    else:
+                        pg.go("/login")
+                        pg.update()
                 except Exception:
                     try:
                         pg.go("/")
-                    except Exception:
-                        pass
-                pg.update()
+                        pg.update()
+                    except Exception as err:
+                        print(f"Navigation error: {err}")
 
         logout_dialog = ft.AlertDialog(
             open=True,
@@ -895,7 +916,7 @@ class ClassesView(ft.Container):
             actions=[
                 ft.TextButton(
                     content=ft.Text("انصراف", color=TEXT_MUTED),
-                    on_click=do_close,
+                    on_click=lambda ev: self.close_popup(logout_dialog),
                 ),
                 ft.ElevatedButton(
                     content=ft.Text(
@@ -904,30 +925,26 @@ class ClassesView(ft.Container):
                         weight=ft.FontWeight.BOLD,
                     ),
                     bgcolor=DANGER_RED,
-                    on_click=do_logout,
+                    on_click=execute_logout,
                 ),
             ],
         )
 
-        pg.overlay.append(logout_dialog)
-        pg.update()
+        self.show_popup(logout_dialog)
 
     def confirm_delete_dialog(self, class_id, class_name):
         """دیالوگ تأیید حذف کلاس"""
         pg = self.get_active_page()
-        if not pg:
+        if pg is None:
             return
 
-        def do_close(e=None):
-            delete_dialog.open = False
-            pg.update()
-
         def do_delete(e=None):
-            # حذف ایمن با فراخوانی تابع اختصاصی
-            self.safe_delete_class(class_id)
-            do_close()
-            # آپدیت کامل صفحه و کارت‌های آمار
-            self.load_classes(refresh=True)
+            success = self.safe_delete_class(class_id)
+            self.close_popup(delete_dialog)
+            if success:
+                self.load_classes(refresh=True)
+            else:
+                print("Failed to delete class.")
 
         delete_dialog = ft.AlertDialog(
             open=True,
@@ -948,7 +965,7 @@ class ClassesView(ft.Container):
                         "انصراف",
                         color=TEXT_MUTED,
                     ),
-                    on_click=do_close,
+                    on_click=lambda ev: self.close_popup(delete_dialog),
                 ),
                 ft.ElevatedButton(
                     content=ft.Text(
@@ -962,8 +979,7 @@ class ClassesView(ft.Container):
             ],
         )
 
-        pg.overlay.append(delete_dialog)
-        pg.update()
+        self.show_popup(delete_dialog)
 
     def go_to_students(self, class_id, class_name):
         """انتقال به صفحه هنرجویان و ذخیره مقادیر سشن"""
@@ -975,10 +991,13 @@ class ClassesView(ft.Container):
                     pg.session.set("selected_class_id", class_id)
                     pg.session.set("selected_class_name", class_name)
                 else:
-                    pg.session["selected_class_id"] = class_id
-                    pg.session["selected_class_name"] = class_name
-            except Exception:
-                pass
+                    try:
+                        pg.session["selected_class_id"] = class_id
+                        pg.session["selected_class_name"] = class_name
+                    except Exception:
+                        pass
+            except Exception as err:
+                print(f"Error setting session variables: {err}")
 
         if callable(self.on_select_class):
             self._call_select_class_callback(class_id, class_name)
@@ -987,11 +1006,14 @@ class ClassesView(ft.Container):
             return
 
         if pg:
-            pg.go("/students")
-            pg.update()
+            try:
+                pg.go("/students")
+                pg.update()
+            except Exception as err:
+                print(f"Error navigating to students page: {err}")
 
     def _call_select_class_callback(self, class_id, class_name):
-        """فراخوانی سازگار متد جابجایی صفحه"""
+        """فراخوانی سازگار متد جابجایی صفحه (callback)"""
         callback = self.on_select_class
         try:
             signature = inspect.signature(callback)
@@ -1015,5 +1037,6 @@ class ClassesView(ft.Container):
                 callback(class_id)
             else:
                 callback()
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as err:
+            print(f"Error calling callback: {err}. Attempting with both arguments.")
             callback(class_id, class_name)

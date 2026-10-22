@@ -194,6 +194,7 @@ def main(page: ft.Page):
         classes_screen = ClassesView(
             page,
             on_select_class=show_students_view,
+            on_logout=show_login_view,
         )
 
         branding_bar = ft.Container(
