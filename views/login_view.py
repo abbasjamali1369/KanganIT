@@ -136,7 +136,7 @@ def LoginView(page: ft.Page, on_login_success):
         change_dialog.open = True
         page.update()
 
-    # دکمه ورود ایمن با Container قابل کلیک (سازگار با تمامی نسخه‌های Flet موبایل و اندروید)
+    # دکمه ورود ایمن با Container قابل کلیک
     login_button = ft.Container(
         content=ft.Row(
             alignment=ft.MainAxisAlignment.CENTER,
@@ -164,7 +164,7 @@ def LoginView(page: ft.Page, on_login_success):
         on_click=handle_login,
     )
 
-    # کارت لاگین با استایل شیک و سایه نرم
+    # کارت لاگین با استایل شیک و سایه نرم (سازگار کامل با موبایل)
     card = ft.Container(
         width=350,
         padding=28,
@@ -174,7 +174,7 @@ def LoginView(page: ft.Page, on_login_success):
         shadow=ft.BoxShadow(
             spread_radius=1,
             blur_radius=30,
-            color=ft.Colors.BLACK54,
+            color=ft.Colors.BLACK,
             offset=ft.Offset(0, 10),
         ),
         content=ft.Column(
@@ -228,7 +228,7 @@ def LoginView(page: ft.Page, on_login_success):
                     content=ft.Text("تغییر رمز عبور", color=ft.Colors.CYAN_200, size=13),
                     on_click=open_dialog,
                 ),
-                ft.Column(
+                    ft.Column(
                     spacing=4,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     controls=[
