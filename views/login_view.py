@@ -122,11 +122,7 @@ def LoginView(page: ft.Page, on_login_success):
         ),
         actions=[
             ft.TextButton(content=ft.Text("انصراف"), on_click=close_dialog),
-            ft.ElevatedButton(
-                content=ft.Text("ذخیره", color=ft.Colors.BLACK),
-                bgcolor=ft.Colors.CYAN_400,
-                on_click=save_new_password,
-            ),
+            ft.TextButton(content=ft.Text("ذخیره", color=ft.Colors.CYAN_400), on_click=save_new_password),
         ],
     )
 
@@ -139,6 +135,34 @@ def LoginView(page: ft.Page, on_login_success):
             page.overlay.append(change_dialog)
         change_dialog.open = True
         page.update()
+
+    # دکمه ورود ایمن با Container قابل کلیک (سازگار با تمامی نسخه‌های Flet موبایل و اندروید)
+    login_button = ft.Container(
+        content=ft.Row(
+            alignment=ft.MainAxisAlignment.CENTER,
+            controls=[
+                ft.Text(
+                    "ورود به سیستم",
+                    size=15,
+                    weight=ft.FontWeight.BOLD,
+                    color=ft.Colors.BLACK,
+                ),
+                ft.Icon(
+                    ft.Icons.LOGIN_ROUNDED,
+                    size=18,
+                    color=ft.Colors.BLACK,
+                ),
+            ],
+            spacing=8,
+        ),
+        bgcolor=ft.Colors.CYAN_400,
+        border_radius=12,
+        padding=14,
+        width=300,
+        alignment=ft.Alignment(0, 0),
+        ink=True,
+        on_click=handle_login,
+    )
 
     # کارت لاگین با استایل شیک و سایه نرم
     card = ft.Container(
@@ -199,32 +223,7 @@ def LoginView(page: ft.Page, on_login_success):
                     ],
                 ),
                 error_text,
-                ft.ElevatedButton(
-                    content=ft.Row(
-                        alignment=ft.MainAxisAlignment.CENTER,
-                        controls=[
-                            ft.Text(
-                                "ورود به سیستم",
-                                size=15,
-                                weight=ft.FontWeight.BOLD,
-                                color=ft.Colors.BLACK,
-                            ),
-                            ft.Icon(
-                                ft.Icons.LOGIN_ROUNDED,
-                                size=18,
-                                color=ft.Colors.BLACK,
-                            ),
-                        ],
-                        spacing=8,
-                    ),
-                    style=ft.ButtonStyle(
-                        shape=ft.RoundedRectangleBorder(radius=12),
-                        padding=14,
-                    ),
-                    bgcolor=ft.Colors.CYAN_400,
-                    width=300,
-                    on_click=handle_login,
-                ),
+                login_button,
                 ft.TextButton(
                     content=ft.Text("تغییر رمز عبور", color=ft.Colors.CYAN_200, size=13),
                     on_click=open_dialog,
@@ -240,7 +239,7 @@ def LoginView(page: ft.Page, on_login_success):
                             text_align=ft.TextAlign.CENTER,
                         ),
                         ft.Text(
-                            "با همکاری و حمایت پژوهش‌سرای شهید احمدی‌ تنها شهرستان کنگان",
+                            "با همکاری و حمایت پژوهش‌سرای شهید احمدی‌روشن شهرستان کنگان",
                             size=10,
                             color=ft.Colors.CYAN_300,
                             weight=ft.FontWeight.W_500,
