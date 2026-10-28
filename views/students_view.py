@@ -18,6 +18,36 @@ COLOR_PRESENT = "#10B981"       # سبز (حاضر)
 COLOR_ABSENT = "#EF4444"        # قرمز (غیبت)
 COLOR_EXCUSED = "#F59E0B"       # نارنجی (غیبت موجه)
 
+
+
+def pill_button(content, bgcolor=None, height=None, style=None, on_click=None, **kwargs):
+    """A Container-based button that avoids version-sensitive Flet button controls."""
+    padding = getattr(style, "padding", None) if style is not None else None
+    shape = getattr(style, "shape", None) if style is not None else None
+    radius = getattr(shape, "radius", 12) if shape is not None else 12
+    side = getattr(style, "side", None) if style is not None else None
+    style_bgcolor = getattr(style, "bgcolor", None) if style is not None else None
+    background = bgcolor if bgcolor is not None else style_bgcolor
+    border = None
+    if side is not None:
+        try:
+            border = ft.Border.all(getattr(side, "width", 1), getattr(side, "color", BORDER_COLOR))
+        except Exception:
+            border = None
+    return ft.Container(
+        content=content,
+        height=height,
+        padding=padding if padding is not None else 8,
+        alignment=ft.Alignment(0, 0),
+        bgcolor=background,
+        border_radius=radius,
+        border=border,
+        on_click=on_click,
+        ink=True,
+        **kwargs,
+    )
+
+
 WEEKDAYS = [
     "شنبه",
     "یکشنبه",
@@ -298,7 +328,7 @@ class StudentsView(ft.Container):
                     # دکمه صفحه اصلی زیر تاریخ
                     ft.Container(
                         alignment=ft.Alignment(1, 0),
-                        content=ft.OutlinedButton(
+                        content=pill_button(
                             content=ft.Row(
                                 controls=[
                                     ft.Text(
@@ -361,7 +391,7 @@ class StudentsView(ft.Container):
                         spacing=6,
                         tight=True,
                         controls=[
-                            ft.ElevatedButton(
+                            pill_button(
                                 content=ft.Row(
                                     controls=[
                                         ft.Icon(
@@ -387,7 +417,7 @@ class StudentsView(ft.Container):
                                 ),
                                 on_click=self.open_add_student_dialog,
                             ),
-                            ft.OutlinedButton(
+                            pill_button(
                                 content=ft.Row(
                                     controls=[
                                         ft.Icon(
@@ -412,7 +442,7 @@ class StudentsView(ft.Container):
                                 ),
                                 on_click=self.open_sessions_history_dialog,
                             ),
-                            ft.OutlinedButton(
+                            pill_button(
                                 content=ft.Row(
                                     controls=[
                                         ft.Icon(
@@ -667,7 +697,7 @@ class StudentsView(ft.Container):
             bgcolor=CARD_BG,
             actions_alignment=ft.MainAxisAlignment.END,
             actions=[
-                ft.ElevatedButton(
+                pill_button(
                     content=ft.Text("بستن", color=TEXT_WHITE, size=12),
                     bgcolor=PURPLE_DARK,
                     on_click=close_history_dlg,
@@ -900,7 +930,7 @@ class StudentsView(ft.Container):
             bgcolor=CARD_BG,
             actions_alignment=ft.MainAxisAlignment.END,
             actions=[
-                ft.ElevatedButton(
+                pill_button(
                     content=ft.Text("بستن", color=TEXT_WHITE, size=12),
                     bgcolor=PURPLE_DARK,
                     on_click=close_stats_dlg,
@@ -1223,11 +1253,11 @@ class StudentsView(ft.Container):
             bgcolor=CARD_BG,
             actions_alignment=ft.MainAxisAlignment.END,
             actions=[
-                ft.TextButton(
+                pill_button(
                     content=ft.Text("انصراف", color=TEXT_MUTED, size=12),
                     on_click=close_dlg,
                 ),
-                ft.ElevatedButton(
+                pill_button(
                     content=ft.Text(
                         "ثبت هنرجو",
                         color=TEXT_WHITE,
@@ -1291,11 +1321,11 @@ class StudentsView(ft.Container):
             bgcolor=CARD_BG,
             actions_alignment=ft.MainAxisAlignment.END,
             actions=[
-                ft.TextButton(
+                pill_button(
                     content=ft.Text("انصراف", color=TEXT_MUTED, size=12),
                     on_click=do_close,
                 ),
-                ft.ElevatedButton(
+                pill_button(
                     content=ft.Text(
                         "حذف قطعی",
                         color=TEXT_WHITE,
